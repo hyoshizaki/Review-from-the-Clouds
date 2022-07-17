@@ -1,0 +1,103 @@
+import pandas as pd
+from summa import keywords
+from keybert import KeyBERT
+import language_tool_python
+import nltk
+import numpy as np
+import pandas as pd
+from os import path
+from wordcloud import WordCloud, STOPWORDS, ImageColorGenerator
+import tkinter as tk
+from PIL import ImageTk, Image
+from nltk.corpus import stopwords
+from nltk.tokenize import word_tokenize, sent_tokenize
+
+import matplotlib.pyplot as plt
+
+#dependent variables
+location = 'C:\\Users\\kgy15\\OneDrive\\Desktop\\Selfie Hacks Project 2022\\amazonalexa.tsv'
+reviews = pd.read_csv('C:\\Users\\kgy15\\OneDrive\\Desktop\\Selfie Hacks Project 2022\\amazonalexa.tsv', sep='\t')
+reviewCol = 3
+
+
+kw_model = KeyBERT(model='all-mpnet-base-v2')
+
+
+keywords = kw_model.extract_keywords(str(reviews.iloc[:,reviewCol]), 
+
+                                     keyphrase_ngram_range=(3, 5), 
+
+                                     stop_words=['english', 'listening', 'thing', 'things', 'echo', 'have', 'do', 
+                                                'would','and','lot', 'is','only','this','31', 'betwe', 'to','my', 
+                                                '3145', '3146', '3147', '3148', '3149', '3150', 'you', 'of', 'them', 'length', 'while'],
+                                      highlight=False,
+                                      top_n=100,
+                                      use_mmr = True)
+
+keywords_list= list(dict(keywords).keys())
+
+tool = language_tool_python.LanguageTool('en-US')
+ 
+# get the matches
+final_list = []
+for x in keywords_list:
+    matches = tool.check(x)
+    if len(matches) < 2 :
+         final_list.append(x)
+
+      
+
+stop_words = nltk.corpus.stopwords.words('english')
+stop_words.extend(["echo", "alexa", "amazon", "good", "great", "nice","'"])
+
+info = pd.read_csv(location, sep = '\t')
+reviews = info.iloc[:,reviewCol]
+taggedAdjectives = []
+for review in reviews:
+  stringOfReview = str(review).lower()
+  tokenized = sent_tokenize(stringOfReview)
+  for i in tokenized:
+    wordsList = nltk.word_tokenize(i)
+    wordsList = [w for w in wordsList if not w in stop_words]
+    tagged = nltk.pos_tag(wordsList)
+    for i in tagged:
+      tag = i[1]
+      if tag == 'JJ':
+        taggedAdjectives.append(i)
+    
+i = 0
+fullString = ""
+while i < 50:
+  fullString = fullString + taggedAdjectives[i][0] + " "
+  i+= 1
+
+
+for var in final_list :
+  fullString = fullString + str(var).lower()
+
+
+text = fullString
+wordcloud = WordCloud().generate(text)
+
+
+window = tk.Tk() 
+window.title("Review From The Clouds")
+window.geometry("700x500")
+frame = tk.Frame(window, width = 600, height = 400)
+frame.pack()
+frame.place(anchor='center', relx=0.5, rely=0.5)
+img = ImageTk.PhotoImage(Image.open('C:\\Users\\kgy15\\OneDrive\\Desktop\\Selfie Hacks Project 2022\\echodotpic.jpg').resize((450,350)))
+label = tk.Label(frame, image = img)
+label.pack()
+
+def changeToAnalysis():
+  plt.figure()
+  plt.imshow(wordcloud, interpolation = 'bilinear')
+  plt.axis("off")
+  plt.show()
+
+button = tk.Button(window, text = "Analyze", command = changeToAnalysis)
+button.pack()
+
+
+window.mainloop()
